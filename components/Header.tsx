@@ -1,9 +1,10 @@
 type HeaderProps = {
   onSyncEmail: () => void;
   isSyncing: boolean;
+  isDemoMode: boolean;
 };
 
-export default function Header({ onSyncEmail, isSyncing }: HeaderProps) {
+export default function Header({ onSyncEmail, isSyncing, isDemoMode }: HeaderProps) {
   return (
     <header className="flex items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-8">
       <div className="flex items-center gap-3">
@@ -16,6 +17,11 @@ export default function Header({ onSyncEmail, isSyncing }: HeaderProps) {
           </p>
           <p className="text-xs text-slate-500">AI 求职管理 Agent</p>
         </div>
+        {isDemoMode && (
+          <div className="ml-2 border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+            Demo Mode
+          </div>
+        )}
       </div>
       <button
         type="button"
@@ -24,8 +30,8 @@ export default function Header({ onSyncEmail, isSyncing }: HeaderProps) {
         className="inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2"
       >
         <span className="text-base leading-none">{isSyncing ? "..." : "↻"}</span>
-        <span className="hidden sm:inline">{isSyncing ? "正在读取邮箱…" : "同步邮箱"}</span>
-        <span className="sm:hidden">{isSyncing ? "读取中" : "同步邮箱"}</span>
+        <span className="hidden sm:inline">{isSyncing ? (isDemoMode ? "Demo 同步中…" : "正在读取邮箱…") : (isDemoMode ? "体验 AI 邮件同步" : "同步邮箱")}</span>
+        <span className="sm:hidden">{isSyncing ? "处理中" : (isDemoMode ? "体验 AI 邮件同步" : "同步邮箱")}</span>
       </button>
     </header>
   );

@@ -19,6 +19,7 @@ type ApplicationsTableProps = {
   now: number;
   onStatusChange: (messageId: string, status: EventStatus) => void;
   onTogglePinned: (messageId: string) => void;
+  isDemoMode: boolean;
 };
 
 const filters: EventFilter[] = ["全部", "待办", "面试", "测评", "已完成", "已逾期", "收藏"];
@@ -38,6 +39,7 @@ export default function ApplicationsTable({
   now,
   onStatusChange,
   onTogglePinned,
+  isDemoMode,
 }: ApplicationsTableProps) {
   const [filter, setFilter] = useState<EventFilter>("全部");
   const visibleEvents = events.filter((event) => matchesFilter(event, filter, now));
@@ -48,7 +50,10 @@ export default function ApplicationsTable({
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">All activity</p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-900">招聘日程</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">招聘日程</h2>
+              {isDemoMode && <span className="border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Synthetic Data</span>}
+            </div>
           </div>
           <span className="text-sm text-slate-400">{visibleEvents.length} 条记录</span>
         </div>

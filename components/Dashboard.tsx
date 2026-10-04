@@ -19,6 +19,7 @@ type SyncStage =
   | "reading"
   | "filtering"
   | "analyzing"
+  | "generating"
   | "complete";
 
 type SyncResponse = {
@@ -28,6 +29,8 @@ type SyncResponse = {
   recruitmentEmails?: number;
   events?: JobEvent[];
   failedAnalyses?: number;
+  demoMode?: boolean;
+  needsConfirmation?: number;
   error?: string;
 };
 
@@ -44,7 +47,7 @@ function isThisWeek(date: string | null, nowTimestamp: number) {
   return target >= start && target < end;
 }
 
-export default function Dashboard() {
+export default function Dashboard({ isDemoMode }: { isDemoMode: boolean }) {
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStage, setSyncStage] = useState<SyncStage>("idle");
@@ -76,14 +79,18 @@ export default function Dashboard() {
     setSyncSummary(null);
     setSyncError(null);
     setShowDetails(false);
-    const filteringTimer = window.setTimeout(() => setSyncStage("filtering"), 300);
-    const analyzingTimer = window.setTimeout(() => setSyncStage("analyzing"), 800);
+    const filteringTimer = window.setTimeout(() => setSyncStage("filtering"), isDemoMode ? 450 : 300);
+    const analyzingTimer = window.setTimeout(() => setSyncStage("analyzing"), isDemoMode ? 950 : 800);
+    const generatingTimer = window.setTimeout(() => setSyncStage("generating"), isDemoMode ? 1450 : 1_000_000);
 
     try {
       const response = await fetch("/api/emails");
       const result: SyncResponse = await response.json();
       if (!response.ok || !result.success) {
         throw new Error(result.error || "同步邮箱失败，请稍后重试。");
+      }
+      if (isDemoMode) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1_900));
       }
       setEvents(applyOverrides(result.events ?? []));
       setSyncSummary(result);
@@ -100,6 +107,7 @@ export default function Dashboard() {
     } finally {
       window.clearTimeout(filteringTimer);
       window.clearTimeout(analyzingTimer);
+      window.clearTimeout(generatingTimer);
       setIsSyncing(false);
     }
   };
@@ -125,12 +133,13 @@ export default function Dashboard() {
   ).size;
 
   const stageText = {
-    reading: "正在读取邮箱…",
-    filtering: "正在筛选招聘邮件…",
+    reading: isDemoMode ? "正在读取15封模拟招聘邮件…" : "正在读取邮箱…",
+    filtering: isDemoMode ? "正在筛选招聘相关信息…" : "正在筛选招聘邮件…",
     analyzing: syncSummary?.candidates
-      ? `正在AI解析${syncSummary.candidates}封候选邮件…`
-      : "正在AI解析候选邮件…",
-    complete: "同步完成",
+      ? (isDemoMode ? "正在模拟AI信息提取…" : `正在AI解析${syncSummary.candidates}封候选邮件…`)
+      : (isDemoMode ? "正在模拟AI信息提取…" : "正在AI解析候选邮件…"),
+    generating: isDemoMode ? "正在生成结构化 Job Event…" : "正在整理结构化求职事项…",
+    complete: isDemoMode ? "Demo 同步完成" : "同步完成",
     idle: "",
   }[syncStage];
 
@@ -167,9 +176,15 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <Header onSyncEmail={handleSyncEmail} isSyncing={isSyncing} />
+      <Header onSyncEmail={handleSyncEmail} isSyncing={isSyncing} isDemoMode={isDemoMode} />
       <main className="mx-auto max-w-7xl px-5 py-9 sm:px-8 sm:py-12">
         <div className="mb-9 max-w-2xl">
+          {isDemoMode && (
+            <p className="mb-3 border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              公开演示模式 · 当前展示15条模拟秋招事项，不会访问真实邮箱或外部AI服务。
+              <span className="mt-1 block text-xs text-amber-700">使用模拟招聘邮件体验完整工作流，不会访问真实邮箱或外部 AI 服务</span>
+            </p>
+          )}
           <p className="mb-3 text-sm font-medium text-teal-700">Good morning, 求职者</p>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">你的秋招，一目了然</h1>
           <p className="mt-3 text-base text-slate-500">AI 自动整理招聘邮件、面试与测评日程</p>
@@ -180,7 +195,9 @@ export default function Dashboard() {
               <p>{syncError || stageText}</p>
               {syncSummary && syncStage === "complete" && !syncError && (
                 <p className="mt-1 text-xs opacity-80">
-                  读取{syncSummary.emailsRead ?? 0}封邮件 · 筛选出{syncSummary.candidates ?? 0}封招聘候选邮件 · 生成{syncSummary.events?.length ?? 0}个求职事项
+                  {isDemoMode
+                    ? `读取Demo邮件：${syncSummary.emailsRead ?? 0} · 招聘候选：${syncSummary.candidates ?? 0} · 生成求职事项：${syncSummary.events?.length ?? 0} · 需要确认：${syncSummary.needsConfirmation ?? 0}`
+                    : `读取${syncSummary.emailsRead ?? 0}封邮件 · 筛选出${syncSummary.candidates ?? 0}封招聘候选邮件 · 生成${syncSummary.events?.length ?? 0}个求职事项`}
                   {(syncSummary.failedAnalyses ?? 0) > 0 ? ` · ${syncSummary.failedAnalyses}封解析失败` : ""}
                 </p>
               )}
@@ -193,7 +210,9 @@ export default function Dashboard() {
               </button>
               {showDetails && (
                 <div className="mt-3 border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">
-                  读取 {syncSummary.emailsRead ?? 0} 封 · 预筛选 {syncSummary.candidates ?? 0} 封 · AI 确认招聘邮件 {syncSummary.recruitmentEmails ?? 0} 封 · 生成 {syncSummary.events?.length ?? 0} 个事项
+                  {isDemoMode
+                    ? `读取Demo邮件：${syncSummary.emailsRead ?? 0} · 招聘候选：${syncSummary.candidates ?? 0} · 生成求职事项：${syncSummary.events?.length ?? 0} · 需要确认：${syncSummary.needsConfirmation ?? 0}`
+                    : `读取 ${syncSummary.emailsRead ?? 0} 封 · 预筛选 ${syncSummary.candidates ?? 0} 封 · AI 确认招聘邮件 ${syncSummary.recruitmentEmails ?? 0} 封 · 生成 ${syncSummary.events?.length ?? 0} 个事项`}
                 </div>
               )}
             </div>
@@ -203,12 +222,13 @@ export default function Dashboard() {
             pendingAssessments={pendingAssessments}
             activeProcesses={activeProcesses}
           />
-          <UpcomingEvents events={upcomingEvents} now={nowTimestamp} />
+          <UpcomingEvents events={upcomingEvents} now={nowTimestamp} isDemoMode={isDemoMode} />
           <ApplicationsTable
             events={sortedEvents}
             now={nowTimestamp}
             onStatusChange={handleStatusChange}
             onTogglePinned={handleTogglePinned}
+            isDemoMode={isDemoMode}
           />
         </div>
       </main>

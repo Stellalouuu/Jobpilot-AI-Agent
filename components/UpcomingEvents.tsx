@@ -11,15 +11,19 @@ import type { JobEvent } from "@/types/job-event";
 type UpcomingEventsProps = {
   events: JobEvent[];
   now: number;
+  isDemoMode: boolean;
 };
 
-export default function UpcomingEvents({ events, now }: UpcomingEventsProps) {
+export default function UpcomingEvents({ events, now, isDemoMode }: UpcomingEventsProps) {
   return (
     <section>
       <div className="mb-4 flex items-end justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-700">Next up</p>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900">即将到来</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="mt-1 text-lg font-semibold text-slate-900">即将到来</h2>
+            {isDemoMode && <span className="border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">Synthetic Data</span>}
+          </div>
         </div>
         <span className="text-sm text-slate-400">{events.length} 个日程</span>
       </div>

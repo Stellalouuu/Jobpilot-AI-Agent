@@ -3,6 +3,21 @@ import { syncRecruitmentEmails } from "@/lib/email-sync";
 import { GeminiServiceError } from "@/lib/ai";
 
 export async function GET() {
+  if (process.env.DEMO_MODE === "true") {
+    const { getDemoJobEvents } = await import("@/lib/demo-data");
+    const events = getDemoJobEvents();
+    return Response.json({
+      success: true,
+      demoMode: true,
+      emailsRead: 15,
+      candidates: 15,
+      recruitmentEmails: 15,
+      events,
+      failedAnalyses: 0,
+      needsConfirmation: events.filter((event) => event.needsConfirmation).length,
+    });
+  }
+
   try {
     const result = await syncRecruitmentEmails();
     return Response.json({ success: true, ...result });
